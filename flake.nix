@@ -40,6 +40,15 @@
           mainProgram = pname;
         };
       };
+
+      registryOwner = "pleme-io";
+      registryName = "akeyless-gen";
+      registryDir = "registry.terraform.io/${registryOwner}/${registryName}/${version}/darwin_arm64";
+
+      mkApp = name: script: {
+        type = "app";
+        program = "${pkgs.writeShellScriptBin name script}/bin/${name}";
+      };
     in
     {
       packages.${system} = {
@@ -58,6 +67,49 @@
           pkgs.gotools
           pkgs.terraform
         ];
+      };
+
+      apps.${system} = {
+        default = {
+          type = "app";
+          program = "${package}/bin/${pname}";
+        };
+        build = mkApp "build" ''
+          set -euo pipefail
+          go build -ldflags "-s -w -X main.version=${version}" -o ${pname}
+          echo "built: ./${pname}"
+        '';
+        install = mkApp "install" ''
+          set -euo pipefail
+          PLUGIN_DIR="$HOME/.terraform.d/plugins/${registryDir}"
+          mkdir -p "$PLUGIN_DIR"
+          go build -ldflags "-s -w -X main.version=${version}" -o "$PLUGIN_DIR/${pname}"
+          echo "installed to $PLUGIN_DIR"
+        '';
+        generate = mkApp "generate" ''
+          set -euo pipefail
+          SPEC="''${SPEC_PATH:-$HOME/code/github/akeylesslabs/akeyless-go/api/openapi.yaml}"
+          RESOURCES="''${RESOURCES_PATH:-$HOME/code/github/pleme-io/akeyless-terraform-resources}"
+          terraform-forge generate \
+            --spec "$SPEC" \
+            --resources "$RESOURCES/resources" \
+            --output ./internal \
+            --provider "$RESOURCES/provider.toml"
+        '';
+        test = mkApp "test" ''
+          set -euo pipefail
+          go test ./...
+        '';
+        check-all = mkApp "check-all" ''
+          set -euo pipefail
+          echo "=> go vet"
+          go vet ./...
+          echo "=> go test"
+          go test ./...
+          echo "=> go build"
+          go build -o /dev/null
+          echo "done: all checks passed"
+        '';
       };
 
       formatter.${system} = pkgs.nixfmt-tree;
