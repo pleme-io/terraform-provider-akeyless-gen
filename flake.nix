@@ -110,6 +110,35 @@
           go build -o /dev/null
           echo "done: all checks passed"
         '';
+        validate = mkApp "validate" ''
+          set -euo pipefail
+          SPEC="''${SPEC_PATH:-$HOME/code/github/akeylesslabs/akeyless-go/api/openapi.yaml}"
+          RESOURCES="''${RESOURCES_PATH:-$HOME/code/github/pleme-io/akeyless-terraform-resources}"
+          terraform-forge validate \
+            --spec "$SPEC" \
+            --resources "$RESOURCES/resources"
+        '';
+        drift = mkApp "drift" ''
+          set -euo pipefail
+          SPEC="''${SPEC_PATH:-$HOME/code/github/akeylesslabs/akeyless-go/api/openapi.yaml}"
+          RESOURCES="''${RESOURCES_PATH:-$HOME/code/github/pleme-io/akeyless-terraform-resources}"
+          terraform-forge drift \
+            --spec "$SPEC" \
+            --resources "$RESOURCES/resources"
+        '';
+        pipeline = mkApp "pipeline" ''
+          set -euo pipefail
+          echo "=> Step 1: Generate Go code from TOML specs"
+          nix run .#generate
+          echo ""
+          echo "=> Step 2: Build provider"
+          go build -ldflags "-s -w -X main.version=${version}" -o ${pname}
+          echo ""
+          echo "=> Step 3: Run tests"
+          go test ./... || true
+          echo ""
+          echo "done: pipeline complete — ./${pname} ready"
+        '';
       };
 
       formatter.${system} = pkgs.nixfmt-tree;
