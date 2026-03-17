@@ -5,6 +5,7 @@ package resources
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -134,7 +135,11 @@ func (r *StaticSecretResource) Create(ctx context.Context, req resource.CreateRe
 	}
 	if !plan.Tags.IsNull() && !plan.Tags.IsUnknown() {
 		var tags []string
-		plan.Tags.ElementsAs(ctx, &tags, false)
+		d := plan.Tags.ElementsAs(ctx, &tags, false)
+		resp.Diagnostics.Append(d...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
 		body.SetStringSlice("tags", tags)
 	}
 	if !plan.Type.IsNull() && !plan.Type.IsUnknown() {
@@ -216,7 +221,7 @@ func (r *StaticSecretResource) readResource(ctx context.Context, name string, pl
 		state.Description = types.StringValue(v)
 	}
 	if v, ok := GetNestedString(result, "delete_protection"); ok {
-		state.DeleteProtection = types.BoolValue(v == "true")
+		state.DeleteProtection = types.BoolValue(strings.EqualFold(v, "true"))
 	}
 	if v, ok := GetNestedString(result, "protection_key_name"); ok && v != "" {
 		state.ProtectionKey = types.StringValue(v)
@@ -244,7 +249,11 @@ func (r *StaticSecretResource) Update(ctx context.Context, req resource.UpdateRe
 
 	if !plan.Tags.IsNull() && !plan.Tags.IsUnknown() {
 		var tags []string
-		plan.Tags.ElementsAs(ctx, &tags, false)
+		d := plan.Tags.ElementsAs(ctx, &tags, false)
+		resp.Diagnostics.Append(d...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
 		body.SetStringSlice("tags", tags)
 	}
 	if !plan.DeleteProtection.IsNull() && !plan.DeleteProtection.IsUnknown() {

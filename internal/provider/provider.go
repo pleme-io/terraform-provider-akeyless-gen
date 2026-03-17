@@ -78,6 +78,13 @@ func (p *AkeylessProvider) Configure(ctx context.Context, req provider.Configure
 		token = os.Getenv("AKEYLESS_ACCESS_TOKEN")
 	}
 
+	if token == "" {
+		resp.Diagnostics.AddWarning(
+			"Missing Access Token",
+			"No access_token provided and AKEYLESS_ACCESS_TOKEN not set. API calls may fail.",
+		)
+	}
+
 	client := resources.NewAkeylessClient(gatewayURL, token)
 	resp.DataSourceData = client
 	resp.ResourceData = client
