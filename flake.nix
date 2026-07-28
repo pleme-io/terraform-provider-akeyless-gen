@@ -135,9 +135,9 @@
           go build -ldflags "-s -w -X main.version=${version}" -o ${pname}
           echo ""
           echo "=> Step 3: Run tests"
-          go test ./... || true
+          go test ./...
           echo ""
-          echo "done: pipeline complete — ./${pname} ready"
+          echo "done: pipeline complete — generated, built, tested — ./${pname} ready"
         '';
       };
 
